@@ -1,0 +1,335 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  password   String
+  role       String
+  isVerified Boolean   @default(false)
+  buyer      Buyer?    @relation(fields: [buyerId], references: [id])
+  buyerId    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+  ratings    Rating[]
+  payments   Payment[]
+  orders     Order[]
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+  merchantId String?
+  admin      Admin?    @relation(fields: [adminId], references: [id])
+  adminId    String?
+  shopper    Shopper?  @relation(fields: [shopperId], references: [id])
+  shopperId  String?
+  products   Product[]
+
+  @@map("users")
+}
+
+model Otp {
+  id           String   @id @default(uuid())
+  mobileNumber String
+  otp          Int      @default(0)
+  status       Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+
+  @@map("otps")
+}
+
+model Buyer {
+  id           String   @id @default(uuid())
+  email        String
+  username     String
+  zone         Zone?    @relation(fields: [zoneId], references: [id])
+  zoneId       String?
+  address      String
+  mobileNumber String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  users        User[]
+
+  @@map("buyers")
+}
+
+model Merchant {
+  id           String   @id @default(uuid())
+  email        String
+  username     String
+  zone         Zone?    @relation(fields: [zoneId], references: [id])
+  zoneId       String?
+  address      String
+  mobileNumber String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  users        User[]
+
+  @@map("merchants")
+}
+
+model Shopper {
+  id                  String   @id @default(uuid())
+  email               String
+  address             String
+  mobileNumber        String
+  picture             Json[]
+  shopName            String
+  shopeId             String
+  tradeLicense        String
+  tradeLicensePicture Json[]
+  ward                String
+  isVerified          Boolean  @default(false)
+  isBlocked           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now())
+  users               User[]
+
+  @@map("shoppers")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  email        String
+  username     String
+  address      String
+  mobileNumber String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  users        User[]
+
+  @@map("admins")
+}
+
+model Zone {
+  id        String     @id @default(uuid())
+  title     String     @unique
+  buyers    Buyer[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @default(now())
+  merchants Merchant[]
+  employees Employee[]
+
+  @@map("zones")
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  title     String    @unique
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        String   @id @default(uuid())
+  title     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@map("brands")
+}
+
+model Product {
+  id                 String      @id @default(uuid())
+  title              String
+  slug               String      @unique
+  description        String
+  price              Int
+  categoryId         String
+  category           Category?   @relation(fields: [categoryId], references: [id])
+  stock              Int
+  unit               String
+  sell               Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @default(now())
+  productImages      Json[]
+  productTags        String[]
+  discount           Int?
+  afterDiscountPrice Int?
+  orderItems         OrderItem[]
+  order              Order?      @relation(fields: [orderId], references: [id])
+  orderId            String?
+  user               User?       @relation(fields: [userId], references: [id])
+  userId             Int?
+  vat                Int
+  totalPrice         Int?
+
+  @@map("products")
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  value     Float
+  comment   String?
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@map("ratings")
+}
+
+model Order {
+  id               String            @id @default(uuid())
+  user             User              @relation(fields: [userId], references: [id])
+  userId           Int
+  orderItems       OrderItem[] // Establishing a relation with OrderItem model
+  payment          Payment?          @relation(fields: [paymentId], references: [id])
+  paymentId        String?
+  isCashOnDelivery Boolean           @default(true)
+  status           OrderStatus       @default(PENDING)
+  totalAmount      Int
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now())
+  products         Product[]
+  assignOrderToDPs AssignOrderToDP[]
+  platformCharge   Int?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  order     Order    @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  @@map("orderItems")
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  amount             Int
+  user               User          @relation(fields: [userId], references: [id])
+  userId             Int
+  status             PaymentStatus @default(PANDING)
+  transactionId      String
+  paymentGatewayData Json?
+
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+  Order     Order[]
+
+  @@map("payments")
+}
+
+model Employee {
+  id               String            @id @default(uuid())
+  name             String
+  types            EmployeeTypes
+  zoneName         String
+  nidNumber        String
+  nidImage         Json[]
+  joiningDate      DateTime?         @default(now())
+  jobEndingDate    DateTime?
+  createdAt        DateTime?         @default(now())
+  updatedAt        DateTime?         @updatedAt
+  assignOrderToDPs AssignOrderToDP[]
+  Zone             Zone?             @relation(fields: [zoneId], references: [id])
+  zoneId           String?
+
+  @@map("employees")
+}
+
+model OperationalCostManagement {
+  id        String    @id @default(uuid())
+  name      String
+  amount    Int
+  purpose   String
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
+
+  @@map("operational_cost_managements")
+}
+
+model AssignOrderToDP {
+  id                                 String    @id @default(uuid())
+  order                              Order     @relation(fields: [orderId], references: [id])
+  orderId                            String
+  employee                           Employee  @relation(fields: [employeeId], references: [id])
+  employeeId                         String
+  deliveryTimeCommitted              Int
+  deliveryCompletionTime             String?
+  orderTime                          String?
+  assigningTime                      String?
+  inProgressTime                     String?
+  orderInProgressMinutes             String?
+  orderReceivedTime                  String?
+  orderDeliveredTime                 String?
+  deliveryDurationFromRecieveMinutes String?
+  orderExcutionTimeMinutes           String?
+  createdAt                          DateTime? @default(now())
+  updatedAt                          DateTime? @updatedAt
+
+  @@map("assign_order_to_dps")
+}
+
+model DeliveryChargeMappingBase {
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  flatCharge       Int?
+  orderCostSlabs   OrderCostSlab[]
+  orderVolumeSlabs OrderVolumeSlab[]
+  createdAt        DateTime?         @default(now())
+  updatedAt        DateTime?         @updatedAt
+
+  @@map("deliveryChargeMappingBase")
+}
+
+// Define a table to store order cost slabs for Order Cost Wise mapping
+model OrderCostSlab {
+  id             Int                       @id @default(autoincrement())
+  fromCost       Int
+  toCost         Int
+  deliveryCharge Int
+  mappingBaseId  Int
+  mappingBase    DeliveryChargeMappingBase @relation(fields: [mappingBaseId], references: [id])
+}
+
+// Define a table to store order volume slabs for Order Volume Wise mapping
+model OrderVolumeSlab {
+  id             Int                       @id @default(autoincrement())
+  fromWeight     Int
+  toWeight       Int
+  deliveryCharge Int
+  mappingBaseId  Int
+  mappingBase    DeliveryChargeMappingBase @relation(fields: [mappingBaseId], references: [id])
+}
+
+enum OrderStatus {
+  ASSIGNING
+  ACCEPTED
+  RECEIVED
+  PENDING
+  CONFIRMED
+  SHIPPED
+  INPROGRESS
+  DELIVERED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PANDING
+  PAID
+}
+
+enum EmployeeTypes {
+  GENERAL
+  DP
+  OTHERS
+}
